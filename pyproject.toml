@@ -29,6 +29,14 @@ markers = [
     "points: mark test with point value for scoring (usage: @pytest.mark.points(10))",
 ]
 testpaths = ["tests"]
+# Both the repo root and src/ go on sys.path so that every import form a
+# student may have written for the PROVIDED mib_database line resolves:
+#   from .mib_database import ...   (relative -- the intended form)
+#   from src.mib_database import ...(root on path)
+#   from mib_database import ...    (src on path)
+# Nothing keys off the MIB's module identity, so importing it under two names
+# is harmless.
+pythonpath = [".", "src"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

@@ -39,7 +39,7 @@ TIMETICKS_PER_SECOND = 100  # SNMP timeticks are 1/100 second
 
 # Import the MIB database (Management Information Base)
 # This contains all the data our agent can serve
-from mib_database import MIB_DATABASE, MIB_PERMISSIONS
+from .mib_database import MIB_DATABASE, MIB_PERMISSIONS
 
 # ============================================================================
 # SNMP AGENT CLASS
