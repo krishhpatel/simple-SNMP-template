@@ -242,3 +242,5 @@ SNMP_TEST_SUITE_DESIGN.md
 # and AI_POLICY.md). .codex/config.toml is also committed because it's shipped
 # by the instructor. This single exclusion protects only the auth blob.
 .codex/auth.json
+.ai-traces/vscode_chat/raw/sessions/5ad8551f-7f9b-419b-959c-ab004e4b4be0.jsonl
+.ai-traces/vscode_chat/raw/sessions/94d13f34-21d5-4df0-bd77-2261afc1f96e.jsonl
