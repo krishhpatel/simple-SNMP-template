@@ -72,10 +72,8 @@ def encode_oid(oid_string: str) -> bytes:
     reference implementation):
     https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#oid-encoding
     """
-    raise NotImplementedError(
-        "Implement encode_oid — see "
-        "https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#oid-encoding"
-    )
+    return bytes(int(part) for part in oid_string.split("."))
+    
 
 def decode_oid(oid_bytes: bytes) -> str:
     """Convert encoded OID bytes back to a dotted-decimal string.
@@ -89,10 +87,7 @@ def decode_oid(oid_bytes: bytes) -> str:
     Bundle 1 requirement. Full walkthrough:
     https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#oid-encoding
     """
-    raise NotImplementedError(
-        "Implement decode_oid — see "
-        "https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#oid-encoding"
-    )
+    return ".".join(str(b) for b in oid_bytes)
 
 def encode_value(value: Any, value_type: ValueType) -> bytes:
     """Encode a Python value as bytes according to its SNMP ValueType.
