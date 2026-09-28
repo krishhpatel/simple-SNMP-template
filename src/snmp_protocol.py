@@ -239,10 +239,23 @@ class SetRequest(SNMPMessage):
         Bundle 2 requirement. Full walkthrough:
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#set-request
         """
-        raise NotImplementedError(
-            "Implement SetRequest.pack — see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#set-request"
-        )
+        payload = struct.pack('!B', len(self.bindings))
+        for oid, value_type, value in self.bindings:
+            oid_bytes = encode_oid(oid)
+            payload += struct.pack('!B', len(oid_bytes))
+            payload += oid_bytes
+
+            value_bytes = encode_value(value, value_type)
+            payload += struct.pack('!B', value_type)
+            payload += struct.pack('!H', len(value_bytes))   # 2 bytes!
+            payload += value_bytes
+
+        total_size = 4 + 4 + 1 + len(payload)
+        message = struct.pack('!I', total_size)
+        message += struct.pack('!I', self.request_id)
+        message += struct.pack('!B', self.pdu_type)
+        message += payload
+        return message
 
     @classmethod
     def unpack(cls, data: bytes) -> 'SetRequest':
@@ -253,10 +266,28 @@ class SetRequest(SNMPMessage):
         Bundle 2 requirement. Full walkthrough:
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#set-request
         """
-        raise NotImplementedError(
-            "Implement SetRequest.unpack — see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#set-request"
-        )
+        if len(data) < 10:
+            raise ValueError(f"SetRequest too short: {len(data)} bytes")
+
+        request_id = struct.unpack('!I', data[4:8])[0]
+        binding_count = data[9]
+
+        offset = 10
+        bindings = []
+        for _ in range(binding_count):
+            oid_length = data[offset]; offset += 1
+            oid = decode_oid(data[offset:offset + oid_length])
+            offset += oid_length
+
+            value_type = ValueType(data[offset]); offset += 1
+            value_length = struct.unpack('!H', data[offset:offset + 2])[0]
+            offset += 2
+            value = decode_value(data[offset:offset + value_length], value_type)
+            offset += value_length
+
+            bindings.append((oid, value_type, value))
+
+        return cls(request_id, bindings)
 
 class GetResponse(SNMPMessage):
     """SNMP GetResponse message - the agent's reply to GET and SET requests."""

@@ -111,12 +111,28 @@ class SNMPManager:
         """
         sock = None
         try:
-            # TODO: connect, send GetRequest, receive + unpack response,
-            # verify type + request_id match, then display bindings or error.
-            raise NotImplementedError(
-                "Implement get — see "
-                "https://clemson-cpsc-3600.github.io/simple-SNMP-template/manager.html#sending-a-get-request"
-            )
+            sock = self._connect_to_agent(host, port)
+
+            request_id = self._get_next_request_id()
+            request = GetRequest(request_id, oids)
+            sock.send(request.pack())
+
+            response_data = receive_complete_message(sock)
+            response = unpack_message(response_data)
+
+            if not isinstance(response, GetResponse):
+                print(f"Error: Expected GetResponse, got {type(response).__name__}")
+                return
+            if response.request_id != request_id:
+                print(f"Error: Request ID mismatch - sent {request_id}, "
+                      f"received {response.request_id}")
+                return
+
+            if response.error_code == ErrorCode.SUCCESS:
+                for oid, value_type, value in response.bindings:
+                    print(f"{oid} = {format_value(value_type, value)}")
+            else:
+                print(f"Error: {format_error(response.error_code)}")
 
         except socket.timeout:
             print(f"Error: Request timed out after {DEFAULT_TIMEOUT} seconds")
@@ -156,14 +172,61 @@ class SNMPManager:
 
         vtype = type_map[value_type.lower()]
 
-        # TODO: Convert `value` (string) to the Python type for `vtype`.
-        #       integer -> int, string -> str, counter/timeticks -> int >= 0.
-        # TODO: Connect, send SetRequest, receive + unpack response, display.
+        try:
+            if vtype == ValueType.INTEGER:
+                converted_value = int(value)
+            elif vtype == ValueType.STRING:
+                converted_value = value
+            elif vtype == ValueType.COUNTER:
+                converted_value = int(value)
+                if converted_value < 0:
+                    print("Error: Counter values must be >= 0")
+                    return
+            elif vtype == ValueType.TIMETICKS:
+                converted_value = int(value)
+                if converted_value < 0:
+                    print("Error: Timeticks values must be >= 0")
+                    return
+        except ValueError:
+            print(f"Error: Cannot convert '{value}' to {value_type.lower()}")
+            return
 
-        raise NotImplementedError(
-            "Implement set — see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/manager.html#sending-a-set-request"
-        )
+        sock = None
+        try:
+            sock = self._connect_to_agent(host, port)
+
+            request_id = self._get_next_request_id()
+            bindings = [(oid, vtype, converted_value)]
+            request = SetRequest(request_id, bindings)
+            sock.send(request.pack())
+
+            response_data = receive_complete_message(sock)
+            response = unpack_message(response_data)
+
+            if not isinstance(response, GetResponse):
+                print(f"Error: Expected GetResponse, got {type(response).__name__}")
+                return
+            if response.request_id != request_id:
+                print(f"Error: Request ID mismatch - sent {request_id}, "
+                      f"received {response.request_id}")
+                return
+
+            if response.error_code == ErrorCode.SUCCESS:
+                print("Set operation successful:")
+                for oid, value_type, value in response.bindings:
+                    print(f"{oid} = {format_value(value_type, value)}")
+            else:
+                print(f"Error: {format_error(response.error_code)}")
+
+        except socket.timeout:
+            print(f"Error: Request timed out after {DEFAULT_TIMEOUT} seconds")
+        except ConnectionRefusedError:
+            print(f"Error: Cannot connect to {host}:{port} - is the agent running?")
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            if sock:
+                sock.close()
 
     # ========================================================================
     # STUDENT IMPLEMENTATION: Helper methods
@@ -178,11 +241,10 @@ class SNMPManager:
 
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/manager.html#connecting-to-the-agent
         """
-        # TODO: socket.socket(AF_INET, SOCK_STREAM) -> settimeout -> connect -> return
-        raise NotImplementedError(
-            "Implement _connect_to_agent — see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/manager.html#connecting-to-the-agent"
-        )
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(DEFAULT_TIMEOUT)     # MUST be before connect()
+        sock.connect((host, port))           # note the tuple: ((host, port))
+        return sock
 
 # ============================================================================
 # PROVIDED: Command-line interface
