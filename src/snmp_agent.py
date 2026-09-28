@@ -177,18 +177,26 @@ class SNMPAgent:
         reference implementation, transactional integrity):
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#processing-setrequest
         """
-        # TODO: PHASE 1 - validate every (oid, value_type, value) in request.bindings:
-        #       - oid in self.mib?              -> NO_SUCH_OID on miss
-        #       - MIB_PERMISSIONS.get(oid, 'read-only') == 'read-write'? -> READ_ONLY
-        #       - value_type == self._get_value_type(stored_type_string)? -> BAD_VALUE
-        # TODO: PHASE 2 - only if every binding passed: update self.mib[oid] to
-        #       (original_type_string, new_value); append (oid, value_type, value)
-        #       to response_bindings.
-        # TODO: Return GetResponse(request.request_id, ErrorCode.SUCCESS, response_bindings).
-        raise NotImplementedError(
-            "Implement _handle_set_request - see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#processing-setrequest"
-        )
+        for oid, value_type, value in request.bindings:
+            if oid not in self.mib:
+                return GetResponse(request.request_id, ErrorCode.NO_SUCH_OID, [])
+
+            permission = MIB_PERMISSIONS.get(oid, 'read-only')
+            if permission != 'read-write':
+                return GetResponse(request.request_id, ErrorCode.READ_ONLY, [])
+
+            mib_type, _ = self.mib[oid]
+            expected_type = self._get_value_type(mib_type)
+            if value_type != expected_type:
+                return GetResponse(request.request_id, ErrorCode.BAD_VALUE, [])
+
+        response_bindings = []
+        for oid, value_type, value in request.bindings:
+            mib_type, _ = self.mib[oid]
+            self.mib[oid] = (mib_type, value)
+            response_bindings.append((oid, value_type, value))
+
+        return GetResponse(request.request_id, ErrorCode.SUCCESS, response_bindings)
 
     def _update_dynamic_values(self):
         """Refresh MIB entries whose values are computed on read.
