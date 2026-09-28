@@ -365,7 +365,25 @@ def receive_complete_message(sock) -> bytes:
     bugs):
     https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#message-framing
     """
-    raise NotImplementedError(
-        "Implement receive_complete_message — see "
-        "https://clemson-cpsc-3600.github.io/simple-SNMP-template/protocol.html#message-framing"
-    )
+    received = b''
+
+    # Phase 1: read the 4-byte size field
+    while len(received) < 4:
+        chunk = sock.recv(4 - len(received))
+        if not chunk:
+            raise ConnectionError("Connection closed while reading size")
+        received += chunk
+
+    message_size = struct.unpack('!I', received[:4])[0]
+    if message_size < MIN_MESSAGE_SIZE or message_size > MAX_MESSAGE_SIZE:
+        raise ValueError(f"Invalid message size: {message_size}")
+
+    # Phase 2: read the rest of the message
+    while len(received) < message_size:
+        remaining = message_size - len(received)
+        chunk = sock.recv(min(remaining, MAX_RECV_BUFFER))
+        if not chunk:
+            raise ConnectionError("Connection closed while reading message")
+        received += chunk
+
+    return received
