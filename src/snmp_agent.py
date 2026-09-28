@@ -109,10 +109,14 @@ class SNMPAgent:
         # TODO: message = unpack_message(message_bytes)
         # TODO: isinstance check -> _handle_get_request / _handle_set_request
         # TODO: return response.pack()
-        raise NotImplementedError(
-            "Implement _process_message - see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#processing-getrequest"
-        )
+        message = unpack_message(message_bytes)
+        if isinstance(message, GetRequest):
+            response = self._handle_get_request(message)
+        elif isinstance(message, SetRequest):
+            response = self._handle_set_request(message)
+        else:
+            raise ValueError(f"Unknown message type: {type(message).__name__}")
+        return response.pack()
 
     def _handle_get_request(self, request: GetRequest) -> GetResponse:
         """Return a GetResponse with values for every requested OID, or an error.
@@ -132,7 +136,7 @@ class SNMPAgent:
         # TODO: Second pass: build bindings as (oid, ValueType, value) using
         #       self._get_value_type(type_string) for the type.
         # TODO: Return GetResponse(request.request_id, ErrorCode.SUCCESS, bindings).
-                for oid in request.oids:
+        for oid in request.oids:
             if oid not in self.mib:
                 return GetResponse(request.request_id, ErrorCode.NO_SUCH_OID, [])
 
