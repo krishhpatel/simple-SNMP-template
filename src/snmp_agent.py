@@ -132,10 +132,17 @@ class SNMPAgent:
         # TODO: Second pass: build bindings as (oid, ValueType, value) using
         #       self._get_value_type(type_string) for the type.
         # TODO: Return GetResponse(request.request_id, ErrorCode.SUCCESS, bindings).
-        raise NotImplementedError(
-            "Implement _handle_get_request - see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#processing-getrequest"
-        )
+                for oid in request.oids:
+            if oid not in self.mib:
+                return GetResponse(request.request_id, ErrorCode.NO_SUCH_OID, [])
+
+        bindings = []
+        for oid in request.oids:
+            mib_type, mib_value = self.mib[oid]
+            value_type = self._get_value_type(mib_type)
+            bindings.append((oid, value_type, mib_value))
+
+        return GetResponse(request.request_id, ErrorCode.SUCCESS, bindings)
 
     def _handle_set_request(self, request: SetRequest) -> GetResponse:
         """Validate every binding, then apply all of them atomically.
@@ -175,10 +182,9 @@ class SNMPAgent:
         # TODO: Compute uptime_seconds from self.start_time and time.time().
         # TODO: Convert to timeticks (uptime_seconds * TIMETICKS_PER_SECOND, int()).
         # TODO: Write self.mib['1.3.6.1.2.1.1.3.0'] = ('TIMETICKS', uptime_ticks).
-        raise NotImplementedError(
-            "Implement _update_dynamic_values - see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#concurrency-and-state"
-        )
+        uptime_seconds = time.time() - self.start_time
+        uptime_ticks = int(uptime_seconds * TIMETICKS_PER_SECOND)
+        self.mib['1.3.6.1.2.1.1.3.0'] = ('TIMETICKS', uptime_ticks)
 
     def _get_value_type(self, type_str: str) -> ValueType:
         """PROVIDED: map MIB type string ('INTEGER', 'STRING', ...) to ValueType enum."""
