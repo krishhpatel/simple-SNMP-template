@@ -65,14 +65,25 @@ class SNMPAgent:
         accept loop, reference implementation):
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#server-lifecycle
         """
-        # TODO: Create server socket, set SO_REUSEADDR, bind to self.port, listen.
-        # TODO: Loop on accept() while self.running; dispatch to _handle_client.
-        # TODO: On KeyboardInterrupt, set self.running=False and break cleanly.
-        # TODO: Always close self.server_socket in a finally block.
-        raise NotImplementedError(
-            "Implement start() - see "
-            "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#server-lifecycle"
-        )
+        try:
+            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server_socket.bind(('', self.port))
+            self.server_socket.listen(LISTEN_BACKLOG)
+            print(f"SNMP Agent listening on port {self.port}...")
+
+            while self.running:
+                try:
+                    client_socket, client_address = self.server_socket.accept()
+                    print(f"Connection from {client_address[0]}:{client_address[1]}")
+                    self._handle_client(client_socket, client_address)
+                except KeyboardInterrupt:
+                    print("\nShutting down...")
+                    self.running = False
+                    break
+        finally:
+            if self.server_socket:
+                self.server_socket.close()
 
     def _handle_client(self, client_socket: socket.socket, client_address: Tuple[str, int]):
         """Process requests from one connected client until they disconnect or time out.
@@ -84,15 +95,22 @@ class SNMPAgent:
         error handling, reference implementation):
         https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#handling-a-client
         """
-        try:
-            # TODO: Set client_socket.settimeout(TIMEOUT_SECONDS).
-            # TODO: Loop: receive_complete_message -> _process_message -> sendall.
-            # TODO: Break on ConnectionError (normal close) or socket.timeout (idle).
-            # TODO: Catch other Exception, log it, and break (one bad client != crash).
-            raise NotImplementedError(
-                "Implement _handle_client - see "
-                "https://clemson-cpsc-3600.github.io/simple-SNMP-template/agent.html#handling-a-client"
-            )
+        try:            
+            client_socket.settimeout(TIMEOUT_SECONDS)
+            while True:
+                try:
+                    message_bytes = receive_complete_message(client_socket)
+                    response_bytes = self._process_message(message_bytes)
+                    client_socket.sendall(response_bytes)
+                except ConnectionError:
+                    print(f"Client {client_address[0]} disconnected normally")
+                    break
+                except socket.timeout:
+                    print(f"Client {client_address[0]} timed out after {TIMEOUT_SECONDS}s")
+                    break
+                except Exception as e:
+                    print(f"ERROR with client {client_address[0]}: {type(e).__name__}: {e}")
+                    break
         finally:
             client_socket.close()
 
